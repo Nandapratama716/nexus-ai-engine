@@ -5,13 +5,13 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     exit();
 }
 
-// 1. Tangkap dan Amankan Data Input
+// Tangkap dan Amankan Data Input
 $model_name  = htmlspecialchars($_POST["model_name"] ?? "Unknown Model");
 $temperature = floatval($_POST["temperature"] ?? 0.7);
 $prompt      = htmlspecialchars($_POST["prompt"] ?? "");
 $precision   = htmlspecialchars($_POST["precision"] ?? "FP16");
 
-// 2. Logika Pengkondisian Server
+// Logika Pengkondisian Server
 if ($temperature >= 0.8) {
     $mode_analysis = "High Creativity / Stochastic Output";
 } elseif ($temperature >= 0.4) {
