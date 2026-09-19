@@ -2,7 +2,7 @@
   <div class="nav-container">
     <div class="nav-brand">
       <span class="pulse-dot"></span>
-      <strong>NEXUS AI ENGINE</strong> &bull; Console v1.1.0 (PHP Dynamic)
+      <strong>NEXUS AI ENGINE</strong> 
     </div>
     <div class="nav-links">
       <a href="index.php#pipeline">Architecture</a>

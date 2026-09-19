@@ -1,5 +1,17 @@
 <?php
-// Data Model Registry
+
+require_once __DIR__ . '/db.php';
+
+// Query 10 riwayat inferensi terakhir langsung dari MongoDB
+try {
+    $initialLogs = $auditCollection->find([], [
+        'sort' => ['_id' => -1],
+        'limit' => 10
+    ]);
+} catch (Exception $e) {
+    $initialLogs = [];
+}
+
 $model_registry = [
     [
         "id" => "llama3-8b",
@@ -45,24 +57,50 @@ $model_registry = [
 </head>
 <body>
 
-  <!-- Modular Include: Navbar (Part 5) -->
   <?php include 'includes/navbar.php'; ?>
 
   <main class="main-wrapper">
-    
     <header class="card hero-card">
-      <span class="badge-status">BACKEND ACTIVE &bull; PHP <?php echo phpversion(); ?></span>
+      <span class="badge-status">FULLSTACK AI ENGINE</span>
       <h1>Neural Engine Management Gateway</h1>
       <p>
         Pusat kendali dan observabilitas inferensi model bahasa skala besar (LLM).
-        Data tabel dan komponen sekarang di-generate secara dinamis dari sisi server.
+        Mendukung transmisi asinkron via <strong>JavaScript Fetch API</strong>, payload standar <strong>JSON</strong>,
+        serta audit log persisten berbasis dokumen data.
       </p>
     </header>
 
-    <!-- Benchmark Model Registry Table (Rendered via foreach loop) -->
+    <section id="pipeline" class="card">
+      <h2>Architecture &amp; Processing Pipeline</h2>
+      <p>Tahapan pemrosesan inferensi dari penerimaan prompt hingga output terstruktur:</p>
+      
+      <div class="diagram-box">
+        <div class="step-node">
+          <div class="node-title">1. Tokenizer</div>
+          <div class="node-desc">BPE Encoding &amp; Embedding</div>
+        </div>
+        <div class="step-arrow">&rarr;</div>
+        <div class="step-node node-active">
+          <div class="node-title">2. Transformer Layers</div>
+          <div class="node-desc">Multi-Head Self-Attention</div>
+        </div>
+        <div class="step-arrow">&rarr;</div>
+        <div class="step-node">
+          <div class="node-title">3. Detokenizer</div>
+          <div class="node-desc">Softmax &amp; Sampling Gen</div>
+        </div>
+      </div>
+
+      <ul class="tech-list" style="margin-top: 18px;">
+        <li><strong>Low-Latency KV Cache:</strong> Mempercepat komputasi sekuensial dengan menyimpan state attention sebelumnya.</li>
+        <li><strong>Dynamic Quantization:</strong> Dukungan presisi FP16, INT8, dan INT4 untuk efisiensi VRAM.</li>
+        <li><strong>Continuous Batching:</strong> Mengelompokkan antrean request secara dinamis pada GPU cluster.</li>
+      </ul>
+    </section>
+
     <section id="benchmark" class="card">
       <h2>Model Registry &amp; Benchmark Performa</h2>
-      <p>Data berikut digenerate langsung dari Array PHP di server:</p>
+      <p>Daftar engine inferensi aktif yang dikelola oleh gateway server:</p>
       
       <div class="table-container">
         <table>
@@ -96,19 +134,18 @@ $model_registry = [
       </div>
     </section>
 
-    <!-- Inference Studio Form (Menghubungkan Form ke PHP Backend) -->
     <section id="playground" class="card">
-      <h2>Inference Studio &amp; Request Dispatcher</h2>
-      <p>Kirim parameter inferensi untuk diproses oleh skrip server-side (<code>process.php</code>):</p>
+      <h2>Inference Studio (Live Dispatch)</h2>
+      <p>Form ini dieksekusi secara asinkron (SPA) tanpa perlu memuat ulang halaman:</p>
 
-      <form action="process.php" method="POST" class="ai-form">
+      <form id="inference-form" class="ai-form">
         <div class="form-row">
           <div class="form-group flex-1">
             <label for="model-select">Target Model Endpoint:</label>
             <select id="model-select" name="model_name">
-              <?php foreach ($model_registry as $model): ?>
-                <option value="<?php echo $model["name"]; ?>">
-                  <?php echo $model["name"]; ?> (<?php echo $model["latency"]; ?>ms)
+              <?php foreach ($model_registry as $m): ?>
+                <option value="<?php echo $m['name']; ?>">
+                  <?php echo $m['name']; ?> (<?php echo $m['latency']; ?>ms)
                 </option>
               <?php endforeach; ?>
             </select>
@@ -122,34 +159,114 @@ $model_registry = [
 
         <div class="form-group">
           <label for="user-prompt">System Context &amp; Payload Instruction:</label>
-          <textarea id="user-prompt" name="prompt" rows="4" placeholder="Tulis instruksi prompt evaluasi sistem..." required></textarea>
+          <textarea id="user-prompt" name="prompt" rows="3" placeholder="Ketik prompt inferensi untuk model..." required></textarea>
         </div>
 
         <div class="form-group">
           <label class="group-label">Quantization / Execution Precision:</label>
           <div class="radio-group">
             <label class="choice-item">
-              <input type="radio" name="precision" value="FP16" checked> FP16 (High Fidelity)
+              <input type="radio" name="precision" value="FP16" checked> FP16
             </label>
             <label class="choice-item">
-              <input type="radio" name="precision" value="INT8"> INT8 (Balanced)
+              <input type="radio" name="precision" value="INT8"> INT8
             </label>
             <label class="choice-item">
-              <input type="radio" name="precision" value="INT4"> INT4 (Low-Memory)
+              <input type="radio" name="precision" value="INT4"> INT4
             </label>
           </div>
         </div>
 
         <div class="button-row">
-          <button type="submit" class="btn btn-primary">Dispatch to Server</button>
-          <button type="reset" class="btn btn-secondary">Clear Parameters</button>
+          <button type="submit" id="submit-btn" class="btn btn-primary">Dispatch Inference</button>
+          <button type="reset" class="btn btn-secondary">Clear</button>
         </div>
       </form>
+
+      <div id="result-card" style="display: none; margin-top: 20px; padding: 18px; background-color: #fef08a; border: var(--border-medium); border-radius: 8px; box-shadow: var(--shadow-hard-sm);">
+        <h3 style="margin-bottom: 8px;">Execution Output:</h3>
+        <div id="live-output" style="font-size: 0.9rem;"></div>
+      </div>
     </section>
 
-    <!-- Modular Include: Footer (Part 5) -->
+    <section id="audit" class="card">
+      <h2>Inference Audit Log (Live Database Records)</h2>
+      <p>Data berikut diambil secara real-time dari dokumen database backend:</p>
+      
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Trace ID</th>
+              <th>Model Active</th>
+              <th>Compute Latency</th>
+              <th>Tokens</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="history-table-body">
+            <?php if (!empty($initialLogs)): ?>
+              <?php foreach ($initialLogs as $log): ?>
+                <tr>
+                  <td>#<?= htmlspecialchars((string)$log['_id']) ?></td>
+                  <td><strong><?= htmlspecialchars($log['model_name'] ?? 'Nexus-Model') ?></strong></td>
+                  <td><?= htmlspecialchars($log['latency_ms'] ?? 0) ?> ms</td>
+                  <td>~<?= htmlspecialchars($log['generated_tokens'] ?? 0) ?> tok</td>
+                  <td><span class="tag tag-ready"><?= htmlspecialchars($log['status'] ?? 'SUCCESS') ?></span></td>
+                  <td>
+                    <button 
+                      class="btn-delete" 
+                      onclick="deleteLog('<?= (string)$log['_id'] ?>')"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php else: ?>
+            <tr>
+              <td colspan="6" style="text-align: center;">Belum ada log inferensi tersimpan.</td>
+            </tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Cluster Specifications &amp; Runtime</h2>
+      <ol class="steps-list">
+        <li><strong>Host Node:</strong> Ubuntu Server x86_64 dengan akselerasi NVIDIA TensorRT-LLM.</li>
+        <li><strong>Orchestrator:</strong> Docker containerized runtime dengan auto-scaling listener.</li>
+        <li><strong>Security Standard:</strong> Sanitasi payload anti-prompt-injection dan enkripsi TLS 1.3 transit.</li>
+      </ol>
+      <div class="ext-note">
+        Pelajari dokumentasi lengkap engine di: 
+        <a href="https://huggingface.co/models" target="_blank" rel="noopener">Hugging Face Hub Registry &rarr;</a>
+      </div>
+    </section>
+
     <?php include 'includes/footer.php'; ?>
 
   </main>
+
+  <!-- Neo-Brutalist Confirmation Modal -->
+  <div id="confirm-modal" class="modal-overlay" aria-hidden="true" style="display: none;">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <span class="modal-badge">&#x26A0;&#xFE0F; SYSTEM ACTION</span>
+        <button type="button" class="modal-close-btn" id="modal-cancel-x" aria-label="Tutup">&times;</button>
+      </div>
+      <h3 class="modal-title" id="modal-title">Hapus Log Inferensi</h3>
+      <p class="modal-text" id="modal-message">Apakah Anda yakin ingin menghapus log inferensi ini dari database MongoDB?</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="modal-btn-cancel">Batal</button>
+        <button type="button" class="btn btn-danger" id="modal-btn-confirm">Hapus Log</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>
